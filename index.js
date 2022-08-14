@@ -2,7 +2,7 @@ var express = require("express");
 var cors = require("cors");
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(
@@ -16,12 +16,12 @@ app.use(cors());
 
 //Firebase Real Time
 var firebase = require("firebase-admin");
-var serviceAccount = require("./private_key.json");
+var serviceAccount = require("./firebase-file.json");
 
 firebase.initializeApp({
   credential: firebase.credential.cert(serviceAccount),
   databaseURL:
-    "https://book-api-710d1-default-rtdb.asia-southeast1.firebasedatabase.app",
+  "https://book-api-710d1-default-rtdb.asia-southeast1.firebasedatabase.app",
 });
 
 var db = firebase.database();
@@ -208,8 +208,7 @@ app.get("/books/:bookid", function (req, res) {
       }
     );
 });
-//test01
-//testtest
+
 //Delete a book by id
 app.delete("/books/:bookid", function (req, res) {
   res.setHeader("Content-Type", "application/json");
@@ -313,9 +312,7 @@ app.put("/books/:bookid", function (req, res) {
 
 //----------- Users ------------//
 //Get all users
-// 1)--- Code ----//
 app.get("/users", function (req, res) {
-
   res.setHeader("Content-Type", "application/json");
 
   var usersReference = db.ref("users");
@@ -331,9 +328,29 @@ app.get("/users", function (req, res) {
     }
   );
 });
+
+//Get a users by id
+app.get("/users/:userid", function (req, res) {
+  res.setHeader("Content-Type", "application/json");
+  var userid = Number(req.params.userid);
+  var usersReference = db.ref("users");
+
+  usersReference
+    .orderByChild("userid")
+    .equalTo(userid)
+    .on(
+      "child_added",
+      function (snapshot) {
+        res.json(snapshot.val());
+        usersReference.off("value");
+      },
+      function (errorObject) {
+        res.send("The read failed: " + errorObject.code);
+      }
+    );
+});
   
 //Delete a user by id
-// 2)--- Code ----//
 app.delete("/users/:userid", function (req, res) {
   res.setHeader("Content-Type", "application/json");
   var userid = Number(req.params.userid);
@@ -342,7 +359,7 @@ app.delete("/users/:userid", function (req, res) {
     usersReference.remove();
     return res.send({
       error: false,
-      message: "Delete user id =" + userid.toString(),
+      message: "Delete users id =" + userid.toString(),
     });
   }
 
@@ -350,24 +367,22 @@ app.delete("/users/:userid", function (req, res) {
 });
 
 //Add new user
-// 3)--- Code ----//
 app.post("/users", function (req, res) {
   var useridValue = req.body.userid;
   var firstnameValue = req.body.firstname;
-  var lastnameValue = req.body.lastname;
-  
+  var lastname = req.body.lastname;
+
 
   var referencePath = "/users/" + useridValue + "/";
 
   //Add to Firebase
-  var userReference = db.ref(referencePath);
-  if (userReference !== null) {
-    userReference.update(
+  var usersReference = db.ref(referencePath);
+  if (usersReference !== null) {
+    usersReference.update(
       {
         userid: useridValue,
-        firstname:firstnameValue,
-        lastname:lastnameValue,
-      
+        lastname: lastname,
+        firstname: firstnameValue,
       },
       function (error) {
         if (error) {
@@ -381,7 +396,33 @@ app.post("/users", function (req, res) {
 });
 
 //Edit a user by id
-// 4)--- Code ----//
+app.put("/users/:userid", function (req, res) {
+
+
+  var useridValue = Number(req.params.userid);
+  var firstnameValue = req.body.firstname;
+  var lastnameValue = req.body.lastname;
+
+  var referencePath = "/users/" + useridValue + "/";
+
+  var usersReference= db.ref(referencePath);
+  if (usersReference !== null) {
+    usersReference.update(
+      {
+        userid: useridValue,
+        firstname: firstnameValue,
+        lastname : lastnameValue,
+      },
+      function (error) {
+        if (error) {
+          res.send("Data could not be saved." + error);
+        } else {
+          res.send("");
+        }
+      }
+    );
+  }
+});
 
 app.listen(port, function () {
   console.log("Server is up and running...");
